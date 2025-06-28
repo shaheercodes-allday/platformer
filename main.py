@@ -10,6 +10,9 @@ WIN = pg.display.set_mode((WIDTH, HEIGHT))
 
 pg.display.set_caption('PLATFORMER')
 
+def draw():
+    pass
+
 def main() -> None:
     while True:
         for event in pg.event.get():
