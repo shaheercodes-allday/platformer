@@ -51,9 +51,12 @@ def draw_background(image_name):
 
     for tile in tile_map: WIN.blit(image, tile)
 
-def draw(player):
-    draw_background('Blue.png')
-    player.draw(WIN)
+def draw(player, objects):
+    draw_background('Purple.png')
+    player.draw()
+
+    for obj in objects:
+        obj.draw()
 
     pg.display.update()
 
@@ -66,12 +69,22 @@ def handle_move(player):
     if keys[pg.K_RIGHT]:
         player.move_right(PLAYER_VEL)
 
+def load_block(size):
+    path = join('assets', 'Terrain', 'Terrain.png')
+    image = pg.image.load(path).convert_alpha()
+    surface = pg.Surface((size, size), pg.SRCALPHA, 32)
+    rect = pg.Rect(96, 128, size, size)
+    surface.blit(image, (0, 0), rect)
+    return pg.transform.scale2x(surface)
+
 class Player(pg.sprite.Sprite):
     COLOR = (225, 0, 0)
     GRAVITY = 1
     SPRITES = load_sprite_sheets('MainCharacters', 'PinkMan', 32, 32, True)
+    ANIMATION_DELAY = 3
 
     def __init__(self, x, y, w, h):
+        super().__init__()
         self.rect = pg.Rect(x, y, w, h)
         self.x_vel = 0
         self.y_vel = 0
@@ -101,13 +114,50 @@ class Player(pg.sprite.Sprite):
         self.move(self.x_vel, self.y_vel)
 
         self.fall_count += 1
+        self.update_sprite()
+
+    def update_sprite(self):
+        sprite_sheet = 'idle'
+        if self.x_vel != 0:
+            sprite_sheet = 'run'
+
+        sprite_sheet_name = sprite_sheet + '_' + self.direction
+        sprites =  self.SPRITES[sprite_sheet_name]
+        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+        self.sprite = sprites[sprite_index] 
+        self.animation_count += 1
+        self.update()
+
+    def update(self):
+        self.rect = self.sprite.get_rect(topleft = (self.rect.x, self.rect.y))
+        self.mask = pg.mask.from_surface(self.sprite)
     
-    def draw(self, win):
-        self.sprite = self.SPRITES['idle_' + self.direction][0]
+    def draw(self):
         WIN.blit(self.sprite, (self.rect.x, self.rect.y))
+
+class Object(pg.sprite.Sprite):
+    def __init__(self, x, y, w, h, name = None):
+        super().__init__()
+        self.rect = pg.Rect(x, y, w, h)
+        self.image = pg.Surface((w, h), pg.SRCALPHA)
+        self.width = w
+        self.height = h
+        self.name = name
+    
+    def draw(self):
+        WIN.blit(self.image, (self.rect.x, self.rect.y))
+
+class Block(Object):
+    def __init__(self, x, y, size):
+        super().__init__(x, y, size, size)
+        block = load_block(size)
+        self.image.blit(block, (0, 0))
+        self.mask = pg.mask.from_surface(self.image)
 
 def main() -> None: 
     player = Player(100, 100, 50, 50) 
+    block_size = 96
+    floor = [Block(i * block_size, HEIGHT - block_size, block_size) for i in range(-WIDTH // block_size, WIDTH * 2 // block_size)]
 
     while True:
         for event in pg.event.get():
@@ -117,7 +167,7 @@ def main() -> None:
 
         player.loop(FPS)
         handle_move(player)
-        draw(player)
+        draw(player, floor)
 
         CLOCK.tick(FPS)
 
